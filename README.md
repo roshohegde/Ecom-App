@@ -46,10 +46,12 @@ The admin account is seeded and cannot be created through public registration. T
 
 1. Sign in with the demo customer account, or choose **Create account** and select `Customer`.
 2. Browse, search, filter, and open products from the shop.
-3. Click **Add +** on a product or **Add to cart** on its detail page.
-4. Open **Cart** to change quantities or remove items.
-5. Choose **Checkout with UPI**. Checkout reserves inventory, creates immutable order item snapshots, processes the mock payment, and consumes stock after success.
-6. Open **My orders** to view order status and payment status.
+3. Check the stock label before buying. Out-of-stock products are marked and their add-to-cart controls are disabled.
+4. Click **Add +** on a product or **Add to cart** on its detail page.
+5. Open **Cart** to change quantities or remove items. Cart additions and quantity increases are checked against available inventory.
+6. Choose **Checkout with UPI**, review the confirmation dialog, and select **Confirm and pay**. Checkout reserves inventory, creates immutable order item snapshots, processes the mock payment, and consumes stock after success.
+7. A successful payment shows a confirmation dialog with links to continue shopping or view orders.
+8. Open **My orders** to see product names, quantities, line totals, order total, fulfillment status, and payment status. Select **View details** for an individual order.
 
 Customer endpoints:
 
@@ -73,7 +75,7 @@ Sellers can manage only their own products:
 - `PUT /api/v1/seller/products/{id}`
 - `DELETE /api/v1/seller/products/{id}`
 
-A listing with zero stock may be visible but cannot be successfully checked out.
+A listing with zero stock remains visible for catalogue awareness, but is marked **Out of stock** and cannot be added to a cart. Cart requests also reject quantities greater than available unreserved stock, protecting against stale browser data or concurrent purchases.
 
 ## Admin flow
 
@@ -122,7 +124,8 @@ Successful payment confirms the order and decrements inventory. Failed payment c
 ## Troubleshooting
 
 - **No products appear:** restart the backend and wait for startup to finish; the initializer creates three demo products and two categories.
-- **Add to cart appears to do nothing:** sign in first, then restart the backend if it was already running before the latest code changes. A successful add is followed by a cart reload.
+- **Add to cart is disabled:** the product has no available stock. Edit it as seller/admin and increase **Available stock**.
+- **Add to cart fails with insufficient inventory:** another purchase may have consumed stock, or the cart quantity is above current available stock. Reduce the quantity or refresh the shop/cart.
 - **Cart or orders page appears blank/loading:** the current UI displays an error and a **Back to shop** link when an API request fails. Check that the backend is running on port 8080.
 - **Product cannot be ordered:** edit it as seller/admin and set available stock above zero.
 - **Admin login fails:** use the exact seeded email and password; do not register an admin through the public form.
