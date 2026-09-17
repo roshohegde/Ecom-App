@@ -30,6 +30,16 @@ Useful URLs:
 
 The default database is an in-memory H2 database. Demo data is recreated whenever the backend starts, so it is intentionally reset after a restart.
 
+## Backend structure
+
+Each feature follows a controller-service-repository boundary:
+
+- Controllers handle HTTP routes, validation, authorization annotations, caching annotations, and response mapping.
+- Services handle feature rules, transactions, inventory/payment orchestration, ownership checks, and DTO construction.
+- Repositories handle persistence queries.
+
+The main application services are `AuthService`, `CartService`, `OrderService`, and `ProductService`.
+
 ## Demo accounts
 
 All demo accounts use `Password@123`.
@@ -138,3 +148,11 @@ mvn test
 cd frontend
 npm run build
 ```
+
+The backend test suite includes:
+
+- Unit tests for cart inventory enforcement and successful item additions.
+- Integration tests for the public product catalogue, authentication, and protected cart access using Spring Boot, H2, and MockMvc.
+- JWT service coverage for token identity and role claims.
+
+Run only the backend tests with `mvn test`, or target a class with `mvn -Dtest=CartControllerTests test`.

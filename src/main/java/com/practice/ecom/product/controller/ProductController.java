@@ -7,8 +7,6 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,14 +21,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.practice.ecom.category.entity.Category;
-import com.practice.ecom.category.repository.CategoryRepository;
-import com.practice.ecom.exception.ApiException;
-import com.practice.ecom.inventory.entity.Inventory;
-import com.practice.ecom.inventory.repository.InventoryRepository;
-import com.practice.ecom.product.entity.Product;
-import com.practice.ecom.product.repository.ProductRepository;
+import com.practice.ecom.product.service.ProductService;
 import com.practice.ecom.security.CurrentUser;
-import com.practice.ecom.user.repository.UserRepository;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -42,175 +34,99 @@ import jakarta.validation.constraints.PositiveOrZero;
 @RequestMapping("/api/v1")
 public class ProductController {
 
-    final ProductRepository products;
-    final CategoryRepository categories;
-    final InventoryRepository inventory;
-    final UserRepository users;
+    private final ProductService products;
 
-    public ProductController(ProductRepository p, CategoryRepository c, InventoryRepository i, UserRepository u) {
-        products = p;
-        categories = c;
-        inventory = i;
-        users = u;
+    public ProductController(ProductService products) {
+        this.products = products;
     }
 
-    public record ProductRequest(@NotBlank String sku, @NotBlank String name, String description, @Positive BigDecimal price, @NotNull Long categoryId, @PositiveOrZero Integer availableQuantity) {
+    public record ProductRequest(@NotBlank String sku, @NotBlank String name, String description,
+            @Positive BigDecimal price, @NotNull Long categoryId, @PositiveOrZero Integer availableQuantity) {}
 
-    }
-
-    public record ProductView(Long id, String sku, String name, String description, BigDecimal price, String category, String status, Integer availableQuantity) {
-
-    }
-
-    ProductView view(Product p) {
-        return new ProductView(p.id, p.sku, p.name, p.description, p.price, p.category.name, p.status.name(), inventory.findByProductId(p.id).map(i -> i.availableQuantity).orElse(0));
-    }
+    public record ProductView(Long id, String sku, String name, String description, BigDecimal price,
+            String category, String status, Integer availableQuantity) {}
 
     @GetMapping("/products")
-    public Page<ProductView> list(@RequestParam(required = false) String category, @RequestParam(required = false) String q, @RequestParam(required = false) BigDecimal minPrice, @RequestParam(required = false) BigDecimal maxPrice, @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable page) {
-        Specification<Product> s = (r, x, b) -> b.equal(r.get("status"), Product.Status.ACTIVE);
-        if (category != null) {
-            s = s.and((r, x, b) -> b.equal(b.lower(r.get("category").get("name")), category.toLowerCase()));
-        
-        }if (q != null) {
-            s = s.and((r, x, b) -> b.or(b.like(b.lower(r.get("name")), "%" + q.toLowerCase() + "%"), b.like(b.lower(r.get("sku")), "%" + q.toLowerCase() + "%")));
-        
-        }if (minPrice != null) {
-            s = s.and((r, x, b) -> b.greaterThanOrEqualTo(r.get("price"), minPrice));
-        
-        }if (maxPrice != null) {
-            s = s.and((r, x, b) -> b.lessThanOrEqualTo(r.get("price"), maxPrice));
-        
-        }return products.findAll(s, page).map(this::view);
+    public Page<ProductView> list(@RequestParam(required = false) String category,
+            @RequestParam(required = false) String q, @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable page) {
+        return products.list(category, q, minPrice, maxPrice, page).map(this::view);
     }
 
     @GetMapping("/products/{id}")
     @Cacheable(value = "products", key = "#id")
     ProductView one(@PathVariable Long id) {
-        Product p = get(id);
-        if (p.status != Product.Status.ACTIVE) {
-            throw new ApiException(404, "NOT_FOUND", "Product not found");
-        
-        }return view(p);
+        return view(products.one(id));
     }
 
     @GetMapping("/categories")
     @Cacheable("categories")
     List<Category> categories() {
-        return categories.findByStatus(Category.Status.ACTIVE);
+        return products.categories();
     }
 
     @PostMapping("/admin/categories")
     @PreAuthorize("hasRole('ADMIN')")
-    ResponseEntity<Category> category(@RequestBody Category c) {
-        c.id = null;
-        return ResponseEntity.status(201).body(categories.save(c));
+    ResponseEntity<Category> category(@RequestBody Category category) {
+        return ResponseEntity.status(201).body(products.createCategory(category));
     }
 
     @PostMapping("/admin/products")
     @PreAuthorize("hasRole('ADMIN')")
-    ResponseEntity<ProductView> adminCreate(@Valid @RequestBody ProductRequest r) {
-        return ResponseEntity.status(201).body(view(create(r, null)));
+    ResponseEntity<ProductView> adminCreate(@Valid @RequestBody ProductRequest request) {
+        return ResponseEntity.status(201).body(view(products.create(command(request), null)));
     }
 
     @PutMapping("/admin/products/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @CacheEvict(value = "products", key = "#id")
-    ProductView adminUpdate(@PathVariable Long id, @Valid @RequestBody ProductRequest r) {
-        Product p = get(id);
-        apply(p, r);
-        setInventory(p, r.availableQuantity());
-        return view(products.save(p));
+    ProductView adminUpdate(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
+        return view(products.update(id, command(request), null));
     }
 
     @DeleteMapping("/admin/products/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @CacheEvict(value = "products", key = "#id")
     ResponseEntity<Void> adminDelete(@PathVariable Long id) {
-        Product p = get(id);
-        p.status = Product.Status.DISCONTINUED;
-        products.save(p);
+        products.delete(id, null);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/seller/products")
     @PreAuthorize("hasRole('SELLER')")
-    Page<ProductView> sellerProducts(@PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable page) {
-        return products.findBySellerIdAndStatus(CurrentUser.id(), Product.Status.ACTIVE, page).map(this::view);
+    Page<ProductView> sellerProducts(@PageableDefault(size = 20, sort = "createdAt") Pageable page) {
+        return products.sellerProducts(CurrentUser.id(), page).map(this::view);
     }
 
     @PostMapping("/seller/products")
     @PreAuthorize("hasRole('SELLER')")
-    ResponseEntity<ProductView> sellerCreate(@Valid @RequestBody ProductRequest r) {
-        return ResponseEntity.status(201).body(view(create(r, CurrentUser.id())));
+    ResponseEntity<ProductView> sellerCreate(@Valid @RequestBody ProductRequest request) {
+        return ResponseEntity.status(201).body(view(products.create(command(request), CurrentUser.id())));
     }
 
     @PutMapping("/seller/products/{id}")
     @PreAuthorize("hasRole('SELLER')")
     @CacheEvict(value = "products", key = "#id")
-    ProductView sellerUpdate(@PathVariable Long id, @Valid @RequestBody ProductRequest r) {
-        Product p = owned(id);
-        apply(p, r);
-        setInventory(p, r.availableQuantity());
-        return view(products.save(p));
+    ProductView sellerUpdate(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
+        return view(products.update(id, command(request), CurrentUser.id()));
     }
 
     @DeleteMapping("/seller/products/{id}")
     @PreAuthorize("hasRole('SELLER')")
     @CacheEvict(value = "products", key = "#id")
     ResponseEntity<Void> sellerDelete(@PathVariable Long id) {
-        Product p = owned(id);
-        p.status = Product.Status.DISCONTINUED;
-        products.save(p);
+        products.delete(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
     }
 
-    Product create(ProductRequest r, Long sellerId) {
-        if (products.findBySku(r.sku()).isPresent()) {
-            throw new ApiException(409, "DUPLICATE_RESOURCE", "SKU already exists");
-        
-        }Product p = new Product();
-        apply(p, r);
-        if (sellerId != null) {
-            p.seller = users.getReferenceById(sellerId);
-        
-        }products.save(p);
-        setInventory(p, r.availableQuantity());
-        return p;
+    private ProductService.ProductCommand command(ProductRequest request) {
+        return new ProductService.ProductCommand(request.sku(), request.name(), request.description(), request.price(),
+                request.categoryId(), request.availableQuantity());
     }
 
-    Product get(Long id) {
-        return products.findById(id).orElseThrow(() -> new ApiException(404, "NOT_FOUND", "Product not found"));
-    }
-
-    Product owned(Long id) {
-        Product p = get(id);
-        if (p.seller == null || !p.seller.id.equals(CurrentUser.id())) {
-            throw new ApiException(403, "FORBIDDEN", "You can manage only your own products");
-        
-        }return p;
-    }
-
-    void apply(Product p, ProductRequest r) {
-        p.sku = r.sku();
-        p.name = r.name();
-        p.description = r.description();
-        p.price = r.price();
-        p.category = categories.findById(r.categoryId()).orElseThrow(() -> new ApiException(404, "NOT_FOUND", "Category not found"));
-    }
-
-    void setInventory(Product p, Integer quantity) {
-        Inventory i = inventory.findByProductId(p.id).orElseGet(() -> {
-            Inventory n = new Inventory();
-            n.product = p;
-            return n;
-        });
-        if (quantity != null) {
-            if (quantity < i.reservedQuantity) {
-                throw new ApiException(409, "INSUFFICIENT_INVENTORY", "Stock cannot be lower than reserved stock");
-            
-            }i.availableQuantity = quantity;
-        }
-        inventory.save(i);
+    private ProductView view(ProductService.ProductView product) {
+        return new ProductView(product.id(), product.sku(), product.name(), product.description(), product.price(),
+                product.category(), product.status(), product.availableQuantity());
     }
 }
