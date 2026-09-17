@@ -1,0 +1,21 @@
+# Dependencies
+frontend/node_modules/
+
+# Java / Maven / Gradle Build
+target/
+
+# Eclipse IDE
+.classpath
+.project
+.settings/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Logs and Environment Secrets
+*.log
+.env

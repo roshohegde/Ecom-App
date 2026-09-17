@@ -1,0 +1,1 @@
+package com.practice.ecom.address.repository; import com.practice.ecom.address.entity.Address; import org.springframework.data.jpa.repository.JpaRepository; import java.util.*; public interface AddressRepository extends JpaRepository<Address,Long>{List<Address> findByUserId(Long userId); Optional<Address> findByUserIdAndDefaultAddressTrue(Long userId);}

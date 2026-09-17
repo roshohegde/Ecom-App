@@ -1,0 +1,131 @@
+.order-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 25px;
+}
+
+.order-card {
+  border: 1px solid var(--line);
+  background: #fffdf9;
+  padding: 22px;
+}
+
+.order-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 17px;
+}
+
+.order-card-header h2 {
+  font: 500 25px/1.1 'Playfair Display';
+  margin: 0 0 8px;
+}
+
+.order-card-header small,
+.order-item small {
+  display: block;
+  color: #6c756e;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.order-items {
+  display: grid;
+}
+
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid #ebe8e0;
+}
+
+.order-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  padding-top: 17px;
+  color: #626c64;
+  font-size: 13px;
+}
+
+.order-card-footer strong {
+  margin-left: auto;
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .order-card-header {
+    display: block;
+  }
+
+  .order-card-header .text-button {
+    padding: 10px 0 0;
+  }
+
+  .order-card-footer strong {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(23, 35, 28, 0.45);
+}
+
+.checkout-modal {
+  width: min(100%, 460px);
+  padding: 32px;
+  background: var(--cream);
+  box-shadow: 0 20px 60px rgba(23, 35, 28, 0.2);
+}
+
+.checkout-modal h2 {
+  font: 500 34px/1.05 'Playfair Display';
+  margin: 0 0 14px;
+}
+
+.checkout-modal p:not(.eyebrow) {
+  color: #626c64;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.success-modal {
+  border-top: 5px solid var(--forest);
+}
+
+.success-modal > strong {
+  display: block;
+  font-size: 22px;
+  margin-top: 18px;
+}
+
+@media (max-width: 520px) {
+  .checkout-modal {
+    padding: 25px;
+  }
+
+  .modal-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+}

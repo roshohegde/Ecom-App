@@ -1,0 +1,20 @@
+.stock-label {
+  display: block;
+  margin-top: 10px;
+  color: #5c765e;
+  font: 10px 'DM Mono';
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.stock-label.out-of-stock {
+  color: var(--orange);
+}
+
+.product-bottom button:disabled,
+.detail .button:disabled {
+  cursor: not-allowed;
+  background: #b7b9b2;
+  color: #f8f6f1;
+  transform: none;
+}
